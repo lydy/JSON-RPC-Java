@@ -1,0 +1,6 @@
+group 'JSON-RPC-Java'
+version '1.0-SNAPSHOT'
+
+dependencies {
+    compile 'cglib:cglib:3.2.5'
+}
