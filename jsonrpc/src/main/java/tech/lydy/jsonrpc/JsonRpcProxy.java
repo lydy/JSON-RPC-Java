@@ -4,6 +4,7 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
+import sun.reflect.generics.reflectiveObjects.TypeVariableImpl;
 
 import java.lang.*;
 import java.lang.annotation.Annotation;
@@ -68,13 +69,17 @@ public class JsonRpcProxy implements MethodInterceptor {
             ParameterizedTypeImpl parameterizedType = (ParameterizedTypeImpl) type;
             //list
             if (Collection.class.isAssignableFrom(parameterizedType.getRawType())) {
+                if (parameterizedType.getActualTypeArguments()[0] instanceof TypeVariableImpl) {
+                    return serializer.deserializeListByMethod(result.getResult(), method);
+                }
                 return serializer.deserializeList(result.getResult(), Class.forName(parameterizedType.getActualTypeArguments()[0].getTypeName()));
             } else {
                 return serializer.deserialize(result.getResult(), parameterizedType.getRawType());
             }
         } else {
+            //TypeVariableImpl
             //default return string
-            return result.getResult();
+            return serializer.deserializeByMethod(result.getResult(), method);
         }
 
     }
