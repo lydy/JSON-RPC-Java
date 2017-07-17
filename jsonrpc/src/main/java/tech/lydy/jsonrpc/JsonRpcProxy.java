@@ -74,7 +74,9 @@ public class JsonRpcProxy implements MethodInterceptor {
             ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
             Type firstArgType = parameterizedType.getActualTypeArguments()[0];
             Boolean isClass = firstArgType instanceof Class;
-            if (firstArgType instanceof TypeVariable || (isClass && ((Class)firstArgType).getSuperclass() == null)) {
+            if (serializer.getMethodSerializers().containsKey(method.getName()) ||
+                    firstArgType instanceof TypeVariable ||
+                    (isClass && ((Class)firstArgType).getSuperclass() == null)) {
                 return serializer.deserializeListByMethod(result.getResult(), method);
             } else if (isClass) {
                 return serializer.deserializeList(result.getResult(), (Class<?>) firstArgType);
