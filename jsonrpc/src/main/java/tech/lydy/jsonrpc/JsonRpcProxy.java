@@ -3,13 +3,11 @@ package tech.lydy.jsonrpc;
 import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
-import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
-import sun.reflect.generics.reflectiveObjects.TypeVariableImpl;
 
-import java.lang.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.TypeVariable;
 import java.util.Collection;
 
 public class JsonRpcProxy implements MethodInterceptor {
@@ -62,24 +60,19 @@ public class JsonRpcProxy implements MethodInterceptor {
             throw new ResultIdNotEqualsException("json rpc id not match, requestId:" + rpcRequest.getId() + ",resultId:" + result.getId());
         }
 
-        Type type = method.getGenericReturnType();
-        if (type.equals(Void.TYPE)) {
+        Class<?> returnType = method.getReturnType();
+        if (void.class.isAssignableFrom(returnType)) {
             return Void.TYPE;
-        } else if (type instanceof ParameterizedTypeImpl) {
-            ParameterizedTypeImpl parameterizedType = (ParameterizedTypeImpl) type;
-            //list
-            if (Collection.class.isAssignableFrom(parameterizedType.getRawType())) {
-                if (parameterizedType.getActualTypeArguments()[0] instanceof TypeVariableImpl) {
-                    return serializer.deserializeListByMethod(result.getResult(), method);
-                }
-                return serializer.deserializeList(result.getResult(), Class.forName(parameterizedType.getActualTypeArguments()[0].getTypeName()));
-            } else {
-                return serializer.deserialize(result.getResult(), parameterizedType.getRawType());
+        } else if (Collection.class.isAssignableFrom(returnType)) {
+            ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
+            if (parameterizedType.getActualTypeArguments()[0] instanceof TypeVariable) {
+                return serializer.deserializeListByMethod(result.getResult(), method);
             }
-        } else {
-            //TypeVariableImpl
-            //default return string
+            return serializer.deserializeList(result.getResult(), (Class<?>) parameterizedType.getActualTypeArguments()[0]);
+        } else if (method.getGenericReturnType() instanceof TypeVariable) {
             return serializer.deserializeByMethod(result.getResult(), method);
+        } else {
+            return serializer.deserialize(result.getResult(), returnType);
         }
 
     }
