@@ -7,6 +7,7 @@ import net.sf.cglib.proxy.MethodProxy;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.Collection;
 
@@ -65,11 +66,16 @@ public class JsonRpcProxy implements MethodInterceptor {
             return Void.TYPE;
         } else if (Collection.class.isAssignableFrom(returnType)) {
             ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
-            if (parameterizedType.getActualTypeArguments()[0] instanceof TypeVariable) {
+            Type firstArgType = parameterizedType.getActualTypeArguments()[0];
+            Boolean isClass = firstArgType instanceof Class;
+            if (firstArgType instanceof TypeVariable || (isClass && ((Class)firstArgType).getSuperclass() == null)) {
                 return serializer.deserializeListByMethod(result.getResult(), method);
+            } else if (isClass) {
+                return serializer.deserializeList(result.getResult(), (Class<?>) firstArgType);
+            } else {
+                throw new RuntimeException("not implement it yet");
             }
-            return serializer.deserializeList(result.getResult(), (Class<?>) parameterizedType.getActualTypeArguments()[0]);
-        } else if (method.getGenericReturnType() instanceof TypeVariable) {
+        } else if (returnType.getSuperclass() == null) {
             return serializer.deserializeByMethod(result.getResult(), method);
         } else {
             return serializer.deserialize(result.getResult(), returnType);
