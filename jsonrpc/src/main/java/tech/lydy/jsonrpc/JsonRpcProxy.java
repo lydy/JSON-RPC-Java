@@ -44,13 +44,17 @@ public class JsonRpcProxy implements MethodInterceptor {
         }
 
         rpcRequest.setParams(args);
-        if (args.length == 1) {
-            if (method.getParameterAnnotations()[0].length > 0) {
-                for (Annotation annotation : method.getParameterAnnotations()[0]) {
-                    if (annotation instanceof ParamType && ((ParamType) annotation).value() == ParamType.Type.Single) {
-                        rpcRequest.setParams(args[0]);
-                    }
+        Integer idx = 0;
+        for (Annotation[] anns: method.getParameterAnnotations()) {
+            idx++;
+            for (Annotation annotation: anns) {
+                if (annotation instanceof ParamType && ((ParamType) annotation).value() == ParamType.Type.Single) {
+                    rpcRequest.setParams(args[idx]);
+                    break;
                 }
+            }
+            if (rpcRequest.getParams() != null) {
+                break;
             }
         }
 
@@ -62,7 +66,9 @@ public class JsonRpcProxy implements MethodInterceptor {
         }
 
         Class<?> returnType = method.getReturnType();
-        if (void.class.isAssignableFrom(returnType)) {
+        if (returnType.getSuperclass() == null || serializer.getMethodSerializers().containsKey(method.getName())) {
+            return serializer.deserializeByMethod(result.getResult(), method);
+        } else if (void.class.isAssignableFrom(returnType)) {
             return Void.TYPE;
         } else if (Collection.class.isAssignableFrom(returnType)) {
             ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
@@ -75,8 +81,6 @@ public class JsonRpcProxy implements MethodInterceptor {
             } else {
                 throw new RuntimeException("not implement it yet");
             }
-        } else if (returnType.getSuperclass() == null) {
-            return serializer.deserializeByMethod(result.getResult(), method);
         } else {
             return serializer.deserialize(result.getResult(), returnType);
         }
