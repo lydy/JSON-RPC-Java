@@ -33,8 +33,7 @@ public class JsonRpcProxy implements MethodInterceptor {
 
         JsonRpcRequest rpcRequest = new JsonRpcRequest();
         rpcRequest.setId(idGenerator.nextId(method));
-        Annotation[] annotations = method.getAnnotations();
-        for (Annotation annotation:annotations) {
+        for (Annotation annotation:method.getAnnotations()) {
             if (annotation instanceof MethodName) {
                 rpcRequest.setMethod(((MethodName) annotation).name());
             }
@@ -45,9 +44,8 @@ public class JsonRpcProxy implements MethodInterceptor {
 
         rpcRequest.setParams(args);
         Integer idx = 0;
-        for (Annotation[] anns: method.getParameterAnnotations()) {
-            idx++;
-            for (Annotation annotation: anns) {
+        for (Annotation[] annotations: method.getParameterAnnotations()) {
+            for (Annotation annotation: annotations) {
                 if (annotation instanceof ParamType && ((ParamType) annotation).value() == ParamType.Type.Single) {
                     rpcRequest.setParams(args[idx]);
                     break;
@@ -56,6 +54,7 @@ public class JsonRpcProxy implements MethodInterceptor {
             if (rpcRequest.getParams() != null) {
                 break;
             }
+            idx++;
         }
 
         JsonRpcResult result = rpcExecutor.execute(rpcRequest);
@@ -66,11 +65,7 @@ public class JsonRpcProxy implements MethodInterceptor {
         }
 
         Class<?> returnType = method.getReturnType();
-        if (returnType.getSuperclass() == null || serializer.getMethodSerializers().containsKey(method.getName())) {
-            return serializer.deserializeByMethod(result.getResult(), method);
-        } else if (void.class.isAssignableFrom(returnType)) {
-            return Void.TYPE;
-        } else if (Collection.class.isAssignableFrom(returnType)) {
+        if (Collection.class.isAssignableFrom(returnType)) {
             ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
             Type firstArgType = parameterizedType.getActualTypeArguments()[0];
             Boolean isClass = firstArgType instanceof Class;
@@ -81,9 +76,13 @@ public class JsonRpcProxy implements MethodInterceptor {
             } else if (isClass) {
                 return serializer.deserializeList(result.getResult(), (Class<?>) firstArgType);
             } else {
-                throw new RuntimeException("not implement it yet");
+                throw new RuntimeException("not support it yet");
             }
-        } else {
+        } else if (void.class.isAssignableFrom(returnType)) {
+            return Void.TYPE;
+        } else if (returnType.getSuperclass() == null || serializer.getMethodSerializers().containsKey(method.getName())) {
+            return serializer.deserializeByMethod(result.getResult(), method);
+        }  else {
             return serializer.deserialize(result.getResult(), returnType);
         }
 
